@@ -1,55 +1,16 @@
-using Microsoft.Extensions.Configuration;
 using Npgsql;
-using RAGDatabaseAssistant.Core.Interfaces;
 using RAGDatabaseAssistant.Core.Models;
-using DatabaseType = RAGDatabaseAssistant.Core.Interfaces.DatabaseType;
 
 namespace RAGDatabaseAssistant.Infrastructure.Database;
 
-public class PostgreSqlProvider(string name,string connectionString ) : IDatabaseProvider
+public class Queries
 {
-    private NpgsqlConnection _connection;
-    
-    public string Name => name;
-    public string ConnectionString => connectionString;
-    public DatabaseType Type { get; } = DatabaseType.PostgreSQL;
-    public async Task<bool> TestConnectionAsync()
+    public static async Task<TableSchemaDetails> GetTechnicalTableSchemaAsync(string connectionString,string tableName )
     {
- 
-            await using var conn = new NpgsqlConnection();
-            conn.ConnectionString = connectionString;
-            await conn.OpenAsync();
-            return true;
-    }
-    
-    public async Task<DatabaseSchema> GetSchemaAsync()
-    {
-        await using var conn = new NpgsqlConnection(ConnectionString);
+        await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync();
         
-        var schema = new DatabaseSchema
-        {
-            DatabaseType = Core.Models.DatabaseType.PostgreSQL,
-            Tables = new List<TableSchema>()
-        };
-        
-        var tables = await GetTablesAsync();
-        
-        foreach (var tableName in tables)
-        {
-            var tableSchema = await GetTableSchemaAsync(tableName);
-            schema.Tables.Add(tableSchema);
-        }
-        
-        return schema;
-    }
-
-    public async Task<TableSchema> GetTableSchemaAsync(string tableName)
-    {
-        await using var conn = new NpgsqlConnection(ConnectionString);
-        await conn.OpenAsync();
-        
-        var tableSchema = new TableSchema
+        var tableSchema = new TableSchemaDetails
         {
             Name = tableName,
             Schema = "public",
@@ -169,6 +130,7 @@ public class PostgreSqlProvider(string name,string connectionString ) : IDatabas
             }
         }
 
+
         // 4. Obtener Índices
         await using var idxCmd = new NpgsqlCommand(@"
             SELECT
@@ -265,58 +227,5 @@ public class PostgreSqlProvider(string name,string connectionString ) : IDatabas
         }
         
         return tableSchema;
-    }
-
-    public async Task<List<string>> GetTablesAsync()
-    {
-        await using var conn = new NpgsqlConnection(ConnectionString);
-        await conn.OpenAsync();
-        
-        await using var cmd = new NpgsqlCommand(@"
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            ORDER BY table_name",
-            conn);
-        
-        var tables = new List<string>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        
-        while (await reader.ReadAsync())
-        {
-            tables.Add(reader.GetString(0));
-        }
-        
-        return tables;
-    }
-
-    public Task<QueryResult> ExecuteQueryAsync(string query)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<string> ExplainQueryAsync(string query)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<QueryStatistics> GetQueryStatisticsAsync(string query)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<List<IndexInfo>> GetIndexesAsync(string tableName)
-    {
-        throw new NotImplementedException();
-    }
-
-    public string TranslateToDialect(string genericQuery)
-    {
-        throw new NotImplementedException();
-    }
-
-    public string GetOptimalDataType(string genericType)
-    {
-        throw new NotImplementedException();
     }
 }

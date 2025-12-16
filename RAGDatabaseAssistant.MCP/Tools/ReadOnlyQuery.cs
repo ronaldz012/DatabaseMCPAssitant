@@ -62,29 +62,28 @@ public sealed class QueryTool( IDatabaseProviderFactory databaseProviderFactory,
         
     }
 
-    [McpServerTool,Description("dsa")]
-    public async Task<McpResponse> GetTableSchema(string databaseName ,string tableName)
+    [McpServerTool, Description("Get the schema of a database")]
+    public async Task<McpResponse> GetSchema(string databaseName)
     {
         try
         {
-            IDatabaseProvider provider = databaseProviderFactory.GetProvider(databaseName);
-            var result = await provider.GetTableSchemaAsync(tableName);
+            var provider = databaseProviderFactory.GetProvider(databaseName);
+            var result = await provider.GetSchemaAsync();
             return new McpSuccessResponse()
             {
                 Data = result
             };
         }
-        catch (Exception ex)
+        catch (Exception e)
         {
             return new McpErrorResponse()
             {
-                Message = ex.Message,
-                Details = ex.InnerException?.Message ?? ""
+                Message = e.Message,
+                Details = e.InnerException?.Message ?? ""
             };
         }
-            
-
     }
+    
 
     [McpServerTool, Description("Get The name of the database tables")]
     public async Task<List<string>> GetTableNames(string databaseName)

@@ -3,17 +3,23 @@ namespace RAGDatabaseAssistant.Core.Models;
 /// <summary>
 /// Representa el schema de una tabla específica
 /// </summary>
+public class TableSchemaDetails : TableSchema
+{
+
+    public List<IndexInfo> Indexes { get; set; } = new();
+    public PrimaryKeyInfo? PrimaryKey { get; set; }
+    public long? RowCount { get; set; }
+    public string? Description { get; set; }
+}
+
 public class TableSchema
 {
     public string Name { get; set; } = string.Empty;
     public string? Schema { get; set; } // Para PostgreSQL: "public", "private", etc.
     public List<ColumnInfo> Columns { get; set; } = new();
-    public List<IndexInfo> Indexes { get; set; } = new();
     public List<ForeignKeyInfo> ForeignKeys { get; set; } = new();
-    public PrimaryKeyInfo? PrimaryKey { get; set; }
-    public long? RowCount { get; set; }
-    public string? Description { get; set; }
 }
+
 
 /// <summary>
 /// Información de una columna

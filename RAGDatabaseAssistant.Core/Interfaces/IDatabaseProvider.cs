@@ -12,8 +12,8 @@ public interface IDatabaseProvider
     Task<bool> TestConnectionAsync();
     
     // Schema inspection
-    Task<DatabaseSchema> GetSchemaAsync();
-    Task<TableSchema> GetTableSchemaAsync(string tableName);
+    Task<DatabaseSemanticSchema> GetSchemaAsync();
+    Task<EntitySchema> GetTableSchemaAsync(string tableName );
     Task<List<string>> GetTablesAsync();
     
     // Query execution
