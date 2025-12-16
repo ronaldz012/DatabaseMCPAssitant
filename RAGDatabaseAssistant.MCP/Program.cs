@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using RAGDatabaseAssistant.Core.Interfaces;
 using RAGDatabaseAssistant.Infrastructure;
 using RAGDatabaseAssistant.Infrastructure.Database;
+using RAGDatabaseAssistant.Infrastructure.Database.Postgres;
 using RAGDatabaseAssistant.MCP.Tools;
 
 var builder = Host.CreateEmptyApplicationBuilder(settings: null);

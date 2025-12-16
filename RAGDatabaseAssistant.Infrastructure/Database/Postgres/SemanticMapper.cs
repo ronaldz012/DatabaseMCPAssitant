@@ -1,7 +1,7 @@
 using RAGDatabaseAssistant.Core.Models;
 using System.Text.RegularExpressions;
 
-namespace RAGDatabaseAssistant.Infrastructure.Database.Postgres;
+namespace RAGDatabaseAssistant.Infrastructure.Database;
 
 public class SemanticMapper
 {
@@ -192,25 +192,104 @@ public class SemanticMapper
         // Mapear foreign keys
         foreach (var fk in table.ForeignKeys)
         {
+            var relationType = InferRelationType(table, fk);
+            
             relations.Add(new SemanticRelation
             {
-                Type = "many-to-one",
+                Type = relationType,
                 TargetEntity = fk.ReferencedTable,
                 Field = fk.ColumnName,
-                Description = GenerateRelationDescription(table.Name, fk)
+                Description = GenerateRelationDescription(table.Name, fk, relationType)
             });
         }
 
         return relations;
     }
 
-    private static string GenerateRelationDescription(string tableName, ForeignKeyInfo fk)
+    private static string InferRelationType(TableSchemaDetails table, ForeignKeyInfo fk)
+    {
+        var tableName = table.Name.ToLower();
+        var columnName = fk.ColumnName.ToLower();
+        var referencedTable = fk.ReferencedTable.ToLower();
+        
+        // 1. Detectar tablas de unión (many-to-many)
+        // Características: nombre compuesto, múltiples FKs, pocas columnas adicionales
+        if (IsJunctionTable(table, tableName))
+        {
+            return "many-to-many";
+        }
+        
+        // 2. Detectar one-to-one
+        // Si la columna FK tiene índice único y no es nullable, probablemente es 1:1
+        var fkColumn = table.Columns.FirstOrDefault(c => c.Name.Equals(fk.ColumnName, StringComparison.OrdinalIgnoreCase));
+        var hasUniqueIndex = table.Indexes.Any(idx => 
+            idx.IsUnique && 
+            idx.Columns.Count == 1 && 
+            idx.Columns[0].Equals(fk.ColumnName, StringComparison.OrdinalIgnoreCase));
+        
+        if (hasUniqueIndex && fkColumn?.IsNullable == false)
+        {
+            return "one-to-one";
+        }
+        
+        // 3. Por defecto: many-to-one
+        // La tabla actual (many) apunta a la tabla referenciada (one)
+        return "many-to-one";
+    }
+
+    private static bool IsJunctionTable(TableSchemaDetails table, string tableName)
+    {
+        // Una tabla de unión típicamente:
+        // 1. Tiene exactamente 2 foreign keys
+        if (table.ForeignKeys.Count != 2)
+            return false;
+        
+        // 2. Tiene un nombre compuesto de dos entidades (UserRoles, RolePermissions, etc.)
+        var hasCompoundName = tableName.Contains("_") || 
+                             (char.IsUpper(table.Name[0]) && table.Name.Skip(1).Any(char.IsUpper));
+        
+        // 3. Tiene pocas columnas aparte de los FKs e Id (máximo 5-6 columnas adicionales)
+        var fkColumnNames = table.ForeignKeys.Select(fk => fk.ColumnName.ToLower()).ToHashSet();
+        var additionalColumns = table.Columns
+            .Where(c => !fkColumnNames.Contains(c.Name.ToLower()))
+            .Where(c => !c.Name.Equals("Id", StringComparison.OrdinalIgnoreCase))
+            .Where(c => !IsAuditField(c.Name))
+            .Count();
+        
+        // 4. No tiene columnas de "contenido" sustanciales
+        var hasContentColumns = table.Columns.Any(c => 
+            (c.DataType.Contains("text") || c.DataType.Contains("varchar")) &&
+            !IsAuditField(c.Name) &&
+            !fkColumnNames.Contains(c.Name.ToLower()) &&
+            !c.Name.Equals("Id", StringComparison.OrdinalIgnoreCase));
+        
+        return hasCompoundName && additionalColumns <= 3 && !hasContentColumns;
+    }
+
+    private static bool IsAuditField(string fieldName)
+    {
+        var lower = fieldName.ToLower();
+        return lower.Contains("created") || 
+               lower.Contains("updated") || 
+               lower.Contains("modified") || 
+               lower.Contains("deleted");
+    }
+
+    private static string GenerateRelationDescription(string tableName, ForeignKeyInfo fk, string relationType)
     {
         var fromEntity = Humanize(tableName);
         var toEntity = Humanize(fk.ReferencedTable);
-        var fieldName = Humanize(fk.ColumnName.Replace("_id", "").Replace("id", ""));
+        var fromSingular = Singularize(fromEntity);
+        var toSingular = Singularize(toEntity);
+        var fieldName = Humanize(fk.ColumnName.Replace("_id", "").Replace("Id", ""));
 
-        return $"Each {fromEntity} belongs to a {toEntity} through {fieldName}";
+        return relationType switch
+        {
+            "one-to-one" => $"Each {fromSingular} has exactly one {toSingular}",
+            "many-to-one" => $"Each {fromSingular} belongs to one {toSingular}",
+            "many-to-many" => $"{fromEntity} are associated with multiple {toEntity}",
+            _ => $"{fromSingular} references {toSingular}"
+        };
     }
 
     private static string GuessCategory(string tableName)

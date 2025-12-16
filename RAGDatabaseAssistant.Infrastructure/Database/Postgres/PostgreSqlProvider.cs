@@ -5,7 +5,7 @@ using RAGDatabaseAssistant.Core.Models;
 using RAGDatabaseAssistant.Infrastructure.Database.Postgres;
 using DatabaseType = RAGDatabaseAssistant.Core.Interfaces.DatabaseType;
 
-namespace RAGDatabaseAssistant.Infrastructure.Database;
+namespace RAGDatabaseAssistant.Infrastructure.Database.Postgres;
 
 public class PostgreSqlProvider(string name,string connectionString ) : IDatabaseProvider
 {

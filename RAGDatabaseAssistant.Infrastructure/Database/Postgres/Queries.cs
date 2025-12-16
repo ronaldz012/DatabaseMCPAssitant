@@ -140,7 +140,19 @@ public class Queries
                 ix.indisprimary AS is_primary,
                 am.amname AS index_type,
                 pg_get_indexdef(ix.indexrelid) AS definition,
-                pg_relation_size(i.oid) AS size_bytes
+                pg_relation_size(i.oid) AS size_bytes,
+                -- Detectar si este índice está sobre una FK
+                CASE 
+                    WHEN EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints tc
+                        JOIN information_schema.key_column_usage kcu 
+                            ON tc.constraint_name = kcu.constraint_name
+                        WHERE tc.constraint_type = 'FOREIGN KEY'
+                            AND tc.table_name = t.relname
+                            AND kcu.column_name = a.attname
+                    ) THEN true
+                    ELSE false
+                END AS is_foreign_key_column
             FROM pg_class t
             JOIN pg_index ix ON t.oid = ix.indrelid
             JOIN pg_class i ON i.oid = ix.indexrelid
@@ -184,7 +196,8 @@ public class Queries
                         IsPrimaryKey = reader.GetBoolean(3),
                         Type = indexType,
                         Definition = reader.GetString(5),
-                        SizeInBytes = reader.GetInt64(6)
+                        SizeInBytes = reader.GetInt64(6),
+                        isForeignKeyColumn = reader.GetBoolean(7),
                     };
                 }
                 

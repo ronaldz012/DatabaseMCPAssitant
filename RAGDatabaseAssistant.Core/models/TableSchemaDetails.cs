@@ -51,6 +51,8 @@ public class IndexInfo
     public IndexType Type { get; set; }
     public string? Definition { get; set; }
     public long? SizeInBytes { get; set; }
+    public bool isForeignKeyColumn { get; set; }
+    
 }
 
 public enum IndexType
